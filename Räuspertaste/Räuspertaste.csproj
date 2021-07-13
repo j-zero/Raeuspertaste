@@ -87,8 +87,8 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\Documents\src\CoreAudio\CoreAudio\CoreAudio.csproj">
-      <Project>{2B432405-C82F-4020-98F7-F4AA55AB771B}</Project>
+    <ProjectReference Include="..\CoreAudio\CoreAudio\CoreAudio.csproj">
+      <Project>{788307e7-4735-4578-bdf5-dd02a97705b5}</Project>
       <Name>CoreAudio</Name>
     </ProjectReference>
   </ItemGroup>
