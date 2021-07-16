@@ -47,6 +47,9 @@ class RawHID
     public delegate void MessageReceivedCallback(byte[] Report);
     public event MessageReceivedCallback MessageReceived;
 
+    public delegate void DeviceConnectedCallback(HidDevice Device);
+    public event DeviceConnectedCallback DeviceConnected;
+
     public RawHID(int VendorId, int ProductId)
     {
         this.VendorId = VendorId;
@@ -70,7 +73,7 @@ class RawHID
             {
                 if (hidDevice == null)
                 {
-                    Console.WriteLine("No Numpad found, searching in background...");
+                    Console.WriteLine("No device found, searching in background...");
                     while (hidDevice == null) Thread.Sleep(100);
                 }
 
@@ -90,6 +93,8 @@ class RawHID
                             hidStream?.Close();
                             hidDevice = null;
                             hidStream = null;
+                            Console.WriteLine("Ahhhhhhhhhhhhh! Fuckup!!!!!!!!!!!!!!");
+                            Console.WriteLine(e.Message);
                             break;
                         }
 
@@ -169,7 +174,10 @@ class RawHID
 
                     Console.WriteLine("Negotiation successful.");
                     Console.WriteLine(device.GetManufacturer() + " " + device.GetProductName());
+                    
                     hidDevice = device;
+
+                    this.RaiseEventOnUIThread(DeviceConnected, new object[] { device });
                     break;
                 }
                 else
