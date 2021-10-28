@@ -15,7 +15,9 @@ namespace Räuspertaste
     {
 
         byte FN_LAYER = 0x01;
-        bool AllowDisplay = false;
+        bool AllowDisplay = true;
+
+        bool TeamsMuted = false;
 
         EDataFlow dataFlow = EDataFlow.eCapture;
         DEVICE_STATE deviceState = DEVICE_STATE.DEVICE_STATE_ACTIVE;
@@ -27,11 +29,15 @@ namespace Räuspertaste
         }
 
         //RawHID rawHid = new RawHID(0x4B42, 0x6061); // KBD75
-        RawHID rawHid = new RawHID(0xFEED, 0x6060); // Numpad
+        //RawHID rawHid = new RawHID(0xFEED, 0x6060); // Numpad
+        RawHID rawHid = new RawHID(0xFEED, 0x6062); // Macropad
         RenderDevice currentDevice = null;
         //private GlobalKeyboardHook _globalKeyboardHook;
         MMDeviceEnumerator deviceEnumerator = new MMDeviceEnumerator();
         MMDeviceEventManager audioDeviceManager = new MMDeviceEventManager();
+
+
+        
 
         protected override void SetVisibleCore(bool value)
         {
@@ -111,12 +117,12 @@ namespace Räuspertaste
                 //System.Threading.Thread.Sleep(100); // warten bis das device kommandos annimmt.
                 SetMuteColor(currentDevice.Device.AudioEndpointVolume.Mute);
             }
-            rawHid.SendRawPayload(RawHID.Commands.Layer_On, new byte[] { FN_LAYER }); // Set FN-Layer
+            //rawHid.SendRawPayload(RawHID.Commands.Layer_On, new byte[] { FN_LAYER }); // Set FN-Layer
         }
 
         private void RawHid_MessageReceived(byte[] Report)
         {
-            WriteLog("0x" + BitConverter.ToString(Report).Replace("-", "").ToLower());
+            WriteLog("< 0x" + BitConverter.ToString(Report).Replace("-", "").ToLower());
             if (currentDevice == null)
                 return;
 
@@ -129,6 +135,11 @@ namespace Räuspertaste
                     ButtonEvent(ButtonState.Released);
                 else if (Report[5] == 0x03)
                     currentDevice.Device.AudioEndpointVolume.Mute = !currentDevice.Device.AudioEndpointVolume.Mute;
+                else if (Report[5] == 0x05)
+                {
+                    MuteTeams();
+
+                }
             }
             // Layer Change
             else if (Report[0] == 0x00 && Report[1] == 0xb0)
@@ -166,14 +177,15 @@ namespace Räuspertaste
 
         void SetMuteColor(bool Muted)
         {
-            byte[] color = new byte[] { 0xff, 0xff, 0xff };
+            byte[] color = new byte[] { 0x00, 0xff, 0xff, 0xff };
 
             if (Muted)
-                color = new byte[] { 0xff, 0x00, 0x00 };
+                color = new byte[] { 0x00, 0xff, 0x00, 0x00 };
             else
-                color = new byte[] { 0x00, 0xff, 0x00 };
+                color = new byte[] { 0x00, 0x00, 0xff, 0x00 };
 
-            rawHid.SendRawPayload(RawHID.Commands.RGB_SetColorRGB, color);
+            rawHid.SendRawPayload(RawHID.Commands.RGB_Single, color);
+            
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -368,7 +380,7 @@ namespace Räuspertaste
 
         private void btnTrigger_Click(object sender, EventArgs e)
         {
-
+            
         }
 
         private void radioRaeusper_CheckedChanged(object sender, EventArgs e)
@@ -412,9 +424,60 @@ namespace Räuspertaste
             Application.Exit();
         }
 
+        private void MuteTeams()
+        {
+            string procName = "Teams";
+
+            MMDeviceEnumerator DevEnum = new MMDeviceEnumerator();
+
+            foreach (MMDevice device in DevEnum.EnumerateAudioEndPoints(EDataFlow.eRender, DEVICE_STATE.DEVICE_STATE_ACTIVE))
+            {
+                foreach (var session in device.AudioSessionManager2.Sessions)
+                {
+                    if (session.State == AudioSessionState.AudioSessionStateActive)
+                    {
+                        var proc = System.Diagnostics.Process.GetProcessById((int)session.GetProcessID);
+                        if (proc.ProcessName == procName)
+                        {
+                            session.SimpleAudioVolume.Mute = !TeamsMuted;
+                        }
+                    }
+                }
+            }
+            foreach (MMDevice device in DevEnum.EnumerateAudioEndPoints(EDataFlow.eCapture, DEVICE_STATE.DEVICE_STATE_ACTIVE))
+            {
+                
+                foreach (var session in device.AudioSessionManager2.Sessions)
+                {
+                    if (session.State == AudioSessionState.AudioSessionStateActive)
+                    {
+                        var proc = System.Diagnostics.Process.GetProcessById((int)session.GetProcessID);
+                        if (proc.ProcessName == procName)
+                        {
+                            WriteLog(session.GetSessionIdentifier);
+                        }
+                    }
+                }
+            }
+            TeamsMuted = !TeamsMuted;
+        }
+
+
         private void beendenToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Exit();
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            byte[] color = new byte[] { 0x00, 0x00, 0x00, 0xff };
+            rawHid.SendRawPayload(RawHID.Commands.RGB_Single, color);
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            MuteTeams();
+
         }
     }
 }

@@ -32,6 +32,7 @@ class RawHID
         RGB_Mode = 0xC3,
         RGB_Enable = 0xC4,
         RGB_Disable= 0xC5,
+        RGB_Single = 0xC6,
         Layer_Report = 0xB0,
         Layer_Invert = 0xB1,
         Layer_On = 0xB2,
