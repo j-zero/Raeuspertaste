@@ -111,18 +111,27 @@ namespace Räuspertaste
 
         private void RawHid_DeviceConnected(HidSharp.HidDevice Device)
         {
+
+
             Console.WriteLine(Device.DevicePath);
             if (currentDevice != null)
             {
+                for(byte i = 0; i< 9; i++)
+                    rawHid.SendRawPayload(RawHID.Commands.RGB_Single, new byte[] { i, 0x00, 0x00, 0x00 });
+
                 //System.Threading.Thread.Sleep(100); // warten bis das device kommandos annimmt.
                 SetMuteColor(currentDevice.Device.AudioEndpointVolume.Mute);
+
+               
+
+
             }
             //rawHid.SendRawPayload(RawHID.Commands.Layer_On, new byte[] { FN_LAYER }); // Set FN-Layer
         }
 
         private void RawHid_MessageReceived(byte[] Report)
         {
-            WriteLog("< 0x" + BitConverter.ToString(Report).Replace("-", "").ToLower());
+            //WriteLog("< 0x" + BitConverter.ToString(Report).Replace("-", "").ToLower());
             if (currentDevice == null)
                 return;
 
@@ -134,7 +143,20 @@ namespace Räuspertaste
                 else if (Report[5] == 0x01)
                     ButtonEvent(ButtonState.Released);
                 else if (Report[5] == 0x03)
-                    currentDevice.Device.AudioEndpointVolume.Mute = !currentDevice.Device.AudioEndpointVolume.Mute;
+                {
+                    //currentDevice.Device.AudioEndpointVolume.Mute = !currentDevice.Device.AudioEndpointVolume.Mute;
+                    if (radioRaeusper.Checked)
+                    {
+                        radioPushToTalk.Checked = true;
+                        radioRaeusper.Checked = false;
+                    }
+                    else if (radioPushToTalk.Checked)
+                    {
+                        radioPushToTalk.Checked = false;
+                        radioRaeusper.Checked = true;
+                    }
+
+                    }
                 else if (Report[5] == 0x05)
                 {
                     MuteTeams();
@@ -177,15 +199,14 @@ namespace Räuspertaste
 
         void SetMuteColor(bool Muted)
         {
-            byte[] color = new byte[] { 0x00, 0xff, 0xff, 0xff };
 
-            if (Muted)
-                color = new byte[] { 0x00, 0xff, 0x00, 0x00 };
-            else
-                color = new byte[] { 0x00, 0x00, 0xff, 0x00 };
+            //rawHid.SendRawPayload(RawHID.Commands.RGB_Single, Muted ? new byte[] { 0x00, 0xff, 0x00, 0x00 } : new byte[] { 0x00, 0x00, 0xff, 0x00 });
+            rawHid.SendRawPayload(RawHID.Commands.RGB_Single, !Muted ? new byte[] { 0x01, 0xff, 0x00, 0x00 } : new byte[] { 0x01, 0x00, 0xff, 0x00 });
 
-            rawHid.SendRawPayload(RawHID.Commands.RGB_Single, color);
-            
+            rawHid.SendRawPayload(RawHID.Commands.RGB_Single, new byte[] { 0x05, 0x80, 0x00, 0xff });
+            rawHid.SendRawPayload(RawHID.Commands.RGB_Single, new byte[] { 0x03, 0x80, 0x00, 0x00 });
+            rawHid.SendRawPayload(RawHID.Commands.RGB_Single, new byte[] { 0x08, 0x00, 0x80, 0x00 });
+
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -422,6 +443,7 @@ namespace Räuspertaste
             rawHid.SendRawPayload(RawHID.Commands.Layer_Off, new byte[] { FN_LAYER }); // Disable FN-Layer
             rawHid.Stop();
             Application.Exit();
+            Environment.Exit(0);
         }
 
         private void MuteTeams()
@@ -478,6 +500,35 @@ namespace Räuspertaste
         {
             MuteTeams();
 
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            if(this.currentDevice != null && !currentDevice.Device.AudioEndpointVolume.Mute && this.currentDevice.Device.AudioMeterInformation.MasterPeakValue != 0)
+            {
+                float peak = this.currentDevice.Device.AudioMeterInformation.MasterPeakValue;
+                byte fval = (byte)map(peak, 0, 1, 0, 255);
+                try
+                {
+                    rawHid.SendRawPayload(RawHID.Commands.RGB_Single, new byte[] { 0x00, (byte)LEDHelper.pwm_table[fval], 0x00, 0x00 });
+                }
+                catch
+                {
+
+                }
+                //rawHid.SendRawPayload(RawHID.Commands.RGB_Single, new byte[] { 0x01, fval, 0x00, 0x00 });
+
+            }
+            else
+            {
+                //rawHid.SendRawPayload(RawHID.Commands.RGB_Single, new byte[] { 0x00, 0x00, 0x80, 0x00 });
+                //rawHid.SendRawPayload(RawHID.Commands.RGB_Single, new byte[] { 0x01, 0x80, 0x00, 0x00 });
+            }
+        }
+
+        float map(float s, float a1, float a2, float b1, float b2)
+        {
+            return b1 + (s - a1) * (b2 - b1) / (a2 - a1);
         }
     }
 }
